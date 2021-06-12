@@ -1,10 +1,12 @@
 import { useNavigation } from '@react-navigation/core';
 import { Formik } from 'formik';
 import * as React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import * as Yup from 'yup';
 import { Input } from 'react-native-elements';
 import { Button } from 'react-native-elements';
+import firebase from 'firebase';
+import { ToastAndroid } from 'react-native';
 
 interface FormData {
     email: string;
@@ -19,11 +21,24 @@ export function LoginScreen () {
     //Ações 
     const signIn = async (data: FormData) => {
         console.log('Login:', data);
-        nav.navigate('home');
+        const { email, password } = data;
+
+        await firebase.auth().signInWithEmailAndPassword(email, password)
+            .then(() => nav.navigate('home'))
+            .catch(() => Alert.alert('Erro', 'Falha ao logar usuário'))
     }
 
     const signUp = async (data: FormData) => {
         console.log('Cadastro:', data);
+        const { email, password } = data;
+
+        await firebase.auth().createUserWithEmailAndPassword(email, password)
+            .then(() => {
+                ToastAndroid.show('Conta criada com sucesso', ToastAndroid.SHORT);
+                nav.navigate('home')
+            })
+            .catch(() => Alert.alert('Erro', 'Não foi possivel criar essa conta'))
+
     }
     
     //Render

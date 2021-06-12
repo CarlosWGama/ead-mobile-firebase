@@ -1,9 +1,16 @@
 import { useNavigation } from '@react-navigation/native';
 import * as React from 'react';
 import { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Alert, LogBox, TouchableOpacity } from 'react-native';
 import { Button, Input } from 'react-native-elements';
+import firebase from 'firebase';
+import 'firebase/firestore';
 
+export interface User {
+    name: string;
+    points: number;
+    id: string;
+}
 
 export function HomeScreen () {
 
@@ -11,30 +18,60 @@ export function HomeScreen () {
     const nav = useNavigation();
     const [ name, setName ] = useState('');
     const [ points, setPoints ] = useState(0);
-    const [ users, setUsers ] = useState([
-        {name: 'Carlos', points: 5},
-        {name: 'João', points: 10},
-        {name: 'Maria', points: 50}
-    ]) 
+    const [ users, setUsers ] = useState<User[]>([]) 
+    const db = firebase.firestore().collection('users');
+
+    LogBox.ignoreLogs(['Setting a timer']);
 
     //Ações
     const quit = async() => {
         nav.navigate('login');
+        firebase.auth().signOut();
     }
 
     const insert = async() => {
         console.log("Nome: ", name);
         console.log("Pontos: ", points);
+
+        const doc = await db.doc();
+        db.doc(doc.id).set({id: doc.id, name, points})
+           .then(() => {
+                Alert.alert('Sucesso', 'Inserido com sucesso');
+                setName('')
+                setPoints(0);
+            }).catch(erro => {
+                console.log('Erro')
+                Alert.alert('Erro', 'Erro ao inserir');
+            })
+
     }
 
     const getUsers = async() => {
-        console.log("Nome: ", name);
-        console.log("Pontos: ", points);
+        db.get().then((results) => {
+            let newUsers: any[] = [];
+            results.forEach(snapshot => {
+                newUsers.push(snapshot.data())
+            })
+            setUsers(newUsers)
+        })
+    }
+
+    const remove = async(user: User) => {
+
+        Alert.alert('Remover', `Deseja realmente remover ${user.name}?`, [
+            {text: 'Não'},
+            {text: 'Sim', onPress: async () => {
+                await db.doc(user.id).delete();
+                getUsers();
+            }}
+        ])
     }
 
     //Render
     return (
       <View style={styles.container}>
+         
+         <Text style={styles.welcome}>Bem vindo! {firebase.auth().currentUser?.email}</Text>
          <Button title="Sair" onPress={quit} buttonStyle={{backgroundColor: 'tomato', borderRadius: 20}} />
          
 
@@ -55,7 +92,9 @@ export function HomeScreen () {
             <Button title="Buscar" onPress={getUsers} buttonStyle={{backgroundColor: 'tomato', borderRadius: 20}} />
             
             {users.map((user, index) => (
-                <Text key={String(index)} style={styles.user}>{user.name} - {user.points}</Text>
+                <TouchableOpacity key={String(index)} onPress={() => remove(user)}>
+                    <Text  style={styles.user}>{user.name} - {user.points}</Text>
+                </TouchableOpacity>
             ))}
          
          </View>
@@ -70,6 +109,11 @@ const styles = StyleSheet.create({
         justifyContent:'flex-start',
         padding: 20,
         paddingTop: 30
+    },
+    welcome: {
+        fontSize: 20,
+        marginTop: 10,
+        textAlign:'center'
     },
     testContainer: {
         marginTop: 50,
